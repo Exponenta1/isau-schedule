@@ -28,13 +28,11 @@
   }
 }
 @media (max-width:640px){
-  :root[data-theme="dark"]{
+  :root{
     --bg:#000000; --surface:#0d0d10; --surface-2:#17171c; --line:#26262e;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#000000; --surface:#0d0d10; --surface-2:#17171c; --line:#26262e;
-    }
+    --text:#eceef6; --muted:#8a8fa6; --faint:#555b72;
+    --accent:#6f78f2; --accent-soft:#a6acf7; --lec:#b07cf5; --pr:#5b8cf7;
+    color-scheme:dark;
   }
 }
 *,*::before,*::after{box-sizing:inherit}
