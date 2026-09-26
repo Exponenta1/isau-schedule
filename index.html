@@ -177,7 +177,6 @@ const TODAY=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());
 
 let state={group:store.get("grp"),course:+(store.get("course")||1),sel:Math.min(Math.max(TODAY,START),END),mode:"day"};
 if(state.group && !DATA[state.group]) state.group=null;
-if(new Date(state.sel).getUTCDay()===0) state.sel+=DAY;
 
 const $=id=>document.getElementById(id);
 const dow=t=>(new Date(t).getUTCDay()+6)%7;
@@ -215,7 +214,6 @@ function slotHTML(p,ls,showEmpty){
 
 function dayHTML(t,showEmpty){
   const ls=lessonsOn(t);
-  if(dow(t)===6) return `<div class="notice"><b>Воскресенье</b>Занятий нет</div>`;
   if(!ls.length && !showEmpty) return "";
   let h="";
   for(let p=1;p<=6;p++) h+=slotHTML(p,ls.filter(l=>l.pair===p),showEmpty);
@@ -236,7 +234,7 @@ function render(){
 
   let s="";
   for(let i=0;i<7;i++){
-    const t=mon+i*DAY, off=t<START||t>END||i===6;
+    const t=mon+i*DAY, off=t<START||t>END;
     const ls=lessonsOn(t);
     const dots=ls.slice(0,6).map(l=>`<i class="${l.type==="lec"?"l":""}"></i>`).join("");
     const cls=["day",off?"off":"",t===TODAY?"today":"",(state.mode==="day"&&t===state.sel)?"sel":""].join(" ");
@@ -259,8 +257,8 @@ function render(){
   }
 }
 
-function nextDay(t){let n=t+DAY;if(dow(n)===6)n+=DAY;return n>END?null:n}
-function prevDay(t){let n=t-DAY;if(dow(n)===6)n-=DAY;return n<START?null:n}
+function nextDay(t){const n=t+DAY;return n>END?null:n}
+function prevDay(t){const n=t-DAY;return n<START?null:n}
 function step(dir){
   if(state.mode==="day"){const n=dir>0?nextDay(state.sel):prevDay(state.sel);if(n!==null)state.sel=n;}
   else{let n=monday(state.sel)+dir*7*DAY;n=Math.min(Math.max(n,START),END);state.sel=n;}
