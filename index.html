@@ -29,9 +29,9 @@
 }
 @media (max-width:640px){
   :root{
-    --bg:#000000; --surface:#0d0d10; --surface-2:#17171c; --line:#26262e;
-    --text:#eceef6; --muted:#8a8fa6; --faint:#555b72;
-    --accent:#6f78f2; --accent-soft:#a6acf7; --lec:#b07cf5; --pr:#5b8cf7;
+    --bg:#000000 !important; --surface:#0d0d10 !important; --surface-2:#17171c !important; --line:#26262e !important;
+    --text:#eceef6 !important; --muted:#8a8fa6 !important; --faint:#555b72 !important;
+    --accent:#6f78f2 !important; --accent-soft:#a6acf7 !important; --lec:#b07cf5 !important; --pr:#5b8cf7 !important;
     color-scheme:dark;
   }
 }
@@ -69,7 +69,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .dots i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--pr)}
 .dots i.l{background:var(--lec)}
 
-.slots{display:flex;flex-direction:column;gap:12px;touch-action:pan-y}
+.slots{display:flex;flex-direction:column;gap:12px;touch-action:pan-y;min-height:55vh}
 .slot{display:grid;grid-template-columns:58px 1fr;gap:14px;padding:16px 18px;border-radius:18px;background:var(--surface)}
 .slot.empty{opacity:.5;padding:14px 18px}
 .time{font-size:.95rem;color:var(--muted);line-height:1.55;font-variant-numeric:tabular-nums;font-weight:500}
