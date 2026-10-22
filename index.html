@@ -193,6 +193,14 @@ function lessonsOn(t){
     (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until));
 }
 
+const TEACHERS={
+  "Добрынин В.Н.":"Добрынин Владимир Николаевич",
+  "Минзов А.С.":"Минзов Анатолий Степанович",
+  "Ульянов С.В.":"Ульянов Сергей Викторович",
+  "Аверкин А.Н.":"Аверкин Алексей Николаевич"
+};
+const fullName=n=>TEACHERS[n]||n;
+
 function lessonHTML(l){
   const meta=[];
   if(l.week!=="all") meta.push(l.week==="odd"?"по нечётным неделям":"по чётным неделям");
@@ -202,7 +210,7 @@ function lessonHTML(l){
   return `<div class="lesson"><div class="lhead"><div class="subj">${esc(l.subject)}${l.short?` <span class="abbr">(${esc(l.short)})</span>`:""}</div>
     <span class="tag ${lec?"l":"p"}">${lec?"лек":"пр"}</span></div>
     ${place?`<div class="room-line">${place}</div>`:""}
-    ${l.teacher?`<div class="teacher">${esc(l.teacher)}</div>`:""}
+    ${l.teacher?`<div class="teacher">${esc(fullName(l.teacher))}</div>`:""}
     ${meta.length?`<div class="meta">${meta.join(", ")}</div>`:""}</div>`;
 }
 
