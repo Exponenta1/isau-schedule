@@ -212,9 +212,36 @@ const TEACHERS={
 const fullName=n=>TEACHERS[n]||n;
 
 // ссылки на онлайн-занятия в LMS: ключ "Преподаватель|сокращение или предмет"
+const LMS="https://lms.uni-dubna.ru/";
 const LINKS={
-  "Кокорева М.Г.|АЯвПП":"https://lms.uni-dubna.ru/user/index.php?id=1456",
-  "Токарева Н.А.|НИР":"https://lms.uni-dubna.ru/course/view.php?id=2427"
+  "Билятдинов К.З.|Философские вопросы современного естествознания, синергетики и устойчивого развития":LMS+"course/view.php?id=4154",
+  "Кокорева М.Г.|АЯвПП":LMS+"user/index.php?id=1456",
+  "Кравец А.Г.|Интеллектуальный анализ данных и нейросетевые модели":LMS+"user/index.php?id=3504",
+  "Токарева Н.А.|НИР":LMS+"course/view.php?id=3245",
+  "Тятюшкина О.Ю.|НИР":LMS+"course/view.php?id=3244",
+  "Любимова А.В.|НИР":LMS+"course/view.php?id=561",
+  "Панов С.А.|НИР":LMS+"course/view.php?id=3926",
+  "Сычев П.П.|ШПвРПО":LMS+"course/view.php?id=1723",
+  "Миловидова А.А.|СПСАУ":LMS+"course/view.php?id=1109",
+  "Миловидова А.А.|ИАДиНСМ":LMS+"course/view.php?id=1109",
+  "Потемкина С.В.|СПСАУ":LMS+"course/view.php?id=1109",
+  "Журавлева Е.В.|ГТвСУ":LMS+"course/view.php?id=1714",
+  "Журавлева Е.В.|ГМ":LMS+"course/view.php?id=4177",
+  "Суханов М.Г.|БГ":LMS+"course/view.php?id=531",
+  "Суханов М.Г.|ПОГ":LMS+"course/view.php?id=4166",
+  "Трофимов Ю.В.|УЗвСС":LMS+"course/view.php?id=1790",
+  "Белов М.А.|УЗвСС":LMS+"course/view.php?id=1790",
+  "Ульянов С.В.|УвИМиИС":LMS+"course/view.php?id=1759",
+  "Мохов А.И.|Маркетинг в системах корпоративного управления":LMS+"course/view.php?id=1793",
+  "Мохов А.И.|Интеллектуальная экономика и ЦМОБД":LMS+"course/view.php?id=3368",
+  "Мельник Е.П.|МвСКУ":LMS+"course/view.php?id=1793",
+  "Мельник Е.П.|И-М":LMS+"course/view.php?id=3083",
+  "Кизим А.В.|УПРСИИ":LMS+"course/view.php?id=3929",
+  "Халимендик В.Б.|ИПФиПИР":LMS+"course/view.php?id=3263",
+  "Добрынин Д.В.|СИАД":LMS+"course/view.php?id=4188",
+  "Финкильштейн М.Я.|ЦДТ":LMS+"course/view.php?id=1751",
+  "Орлова Е.Р.|УИП":LMS+"course/view.php?id=4196",
+  "Тюпикова Т.В.|ИТвЦЭ":LMS+"course/view.php?id=4195"
 };
 const lessonLink=l=>LINKS[`${l.teacher}|${l.short||l.subject}`]||null;
 
