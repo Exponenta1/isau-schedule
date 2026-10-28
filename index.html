@@ -186,18 +186,33 @@ const weekNo=t=>Math.floor((t-WEEK0)/DAY/7)+1;
 const iso=t=>new Date(t).toISOString().slice(0,10);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-// отмены на конкретные даты: все занятия преподавателя в этот день
+// отмены на конкретные даты (group, pair, subject, teacher необязательны: сужают отмену)
 const CANCELLED=[
-  {date:"2026-10-29",teacher:"Крейдер О.А."}
+  {date:"2026-10-29",teacher:"Крейдер О.А."},
+  // перенос: лекция СПСАУ пт 30.10 -> пн 02.11, 4 пара (см. EXTRA)
+  {date:"2026-10-30",teacher:"Миловидова А.А.",pair:5,type:"lec"},
+  // перенос: семинар ИАДиНСМ у 5011 пт 30.10 -> пн 02.11, 3 пара (см. EXTRA)
+  {date:"2026-10-30",teacher:"Миловидова А.А.",pair:6,group:"5011 ИВТ (ИТвУЦП)",short:"ИАДиНСМ"}
+];
+// разовые занятия на конкретные даты; groups:null = у всех групп, у которых есть такая лекция
+const SPSAU="Современные проблемы системного анализа и управления";
+const EXTRA=[
+  {date:"2026-11-02",lesson:{guess:false,week:"all",subject:SPSAU,short:null,room:null,online:true,teacher:"Миловидова А.А.",note:"перенос с 30 октября",until:null,pair:4,type:"lec",links:["https://lms.uni-dubna.ru/course/view.php?id=1109"]},
+   groups:["5012 САУ (ЦПиАБД)","5071 ПИ (ИИвСУ)","5072 ПИ (ИИвЦЭ)","5073 ПИ (БАиИАД)","5074 ПИ (ЦДвПРС)","5011 ИВТ (ИТвУЦП)","5031 Экономика (УИПвЦЭ)"]},
+  {date:"2026-11-02",lesson:{guess:false,week:"all",subject:"Интеллектуальный анализ данных и нейросетевые модели",short:"ИАДиНСМ",room:"1-414",online:false,teacher:"Миловидова А.А.",note:"перенос с 30 октября",until:null,pair:3,type:"pr"},
+   groups:["5011 ИВТ (ИТвУЦП)"]}
 ];
 
 function lessonsOn(t){
   if(!state.group||t<START||t>END) return [];
   const d=dow(t); if(d>5) return [];
-  const odd=weekNo(t)%2===1, day=iso(t);
-  return DATA[state.group].lessons.filter(l=>l.day===d &&
-    (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until) &&
-    !CANCELLED.some(c=>c.date===day&&c.teacher===l.teacher));
+  const odd=weekNo(t)%2===1, day=iso(t), g=state.group;
+  const cancelled=l=>CANCELLED.some(c=>c.date===day&&c.teacher===l.teacher&&
+    (!c.pair||c.pair===l.pair)&&(!c.type||c.type===l.type)&&(!c.group||c.group===g)&&(!c.short||c.short===l.short));
+  const base=DATA[g].lessons.filter(l=>l.day===d &&
+    (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until) && !cancelled(l));
+  const extra=EXTRA.filter(x=>x.date===day&&x.groups.includes(g)).map(x=>x.lesson);
+  return base.concat(extra);
 }
 
 const TEACHERS={
