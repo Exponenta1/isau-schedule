@@ -186,12 +186,18 @@ const weekNo=t=>Math.floor((t-WEEK0)/DAY/7)+1;
 const iso=t=>new Date(t).toISOString().slice(0,10);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+// отмены на конкретные даты: все занятия преподавателя в этот день
+const CANCELLED=[
+  {date:"2026-10-29",teacher:"Крейдер О.А."}
+];
+
 function lessonsOn(t){
   if(!state.group||t<START||t>END) return [];
   const d=dow(t); if(d>5) return [];
   const odd=weekNo(t)%2===1, day=iso(t);
   return DATA[state.group].lessons.filter(l=>l.day===d &&
-    (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until));
+    (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until) &&
+    !CANCELLED.some(c=>c.date===day&&c.teacher===l.teacher));
 }
 
 const TEACHERS={
