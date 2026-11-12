@@ -2,52 +2,76 @@
  "group": "5072 ПИ (ИИвЦЭ)",
  "items": [
   {
-   "id": 558,
-   "date": "2026-10-30",
-   "time": "09:43",
-   "url": "https://t.me/AI5072/558"
+   "subject": "Стратегическое планирование",
+   "teacher": "Волкова",
+   "tagged": false,
+   "after": "2026-10-01",
+   "due": null,
+   "id": 320,
+   "url": "https://t.me/AI5072/320"
   },
   {
-   "id": 560,
-   "date": "2026-10-30",
-   "time": "09:46",
-   "url": "https://t.me/AI5072/560"
+   "subject": "Английский язык в профессиональной практике",
+   "teacher": null,
+   "tagged": false,
+   "after": "2026-10-07",
+   "due": null,
+   "id": 337,
+   "url": "https://t.me/AI5072/337"
   },
   {
-   "id": 564,
-   "date": "2026-10-30",
-   "time": "09:58",
-   "url": "https://t.me/AI5072/564"
+   "subject": "Английский язык в профессиональной практике",
+   "teacher": null,
+   "tagged": false,
+   "after": "2026-10-14",
+   "due": null,
+   "id": 375,
+   "url": "https://t.me/AI5072/375"
   },
   {
-   "id": 567,
-   "date": "2026-10-30",
-   "time": "10:38",
-   "url": "https://t.me/AI5072/567"
+   "subject": "Английский язык в профессиональной практике",
+   "teacher": null,
+   "tagged": true,
+   "after": "2026-10-21",
+   "due": null,
+   "id": 511,
+   "url": "https://t.me/AI5072/511"
   },
   {
-   "id": 591,
-   "date": "2026-10-30",
-   "time": "12:57",
-   "url": "https://t.me/AI5072/591"
+   "subject": "Английский язык в профессиональной практике",
+   "teacher": null,
+   "tagged": true,
+   "after": "2026-10-27",
+   "due": null,
+   "id": 536,
+   "url": "https://t.me/AI5072/536"
   },
   {
-   "id": 602,
-   "date": "2026-11-02",
-   "time": "17:14",
-   "url": "https://t.me/AI5072/602"
+   "subject": "Стратегическое планирование",
+   "teacher": "Волкова",
+   "tagged": true,
+   "after": "2026-10-30",
+   "due": null,
+   "id": 587,
+   "url": "https://t.me/AI5072/587"
   },
   {
-   "id": 606,
-   "date": "2026-11-03",
-   "time": "18:36",
-   "url": "https://t.me/AI5072/606"
+   "subject": "Современные проблемы системного анализа и управления",
+   "teacher": null,
+   "tagged": true,
+   "after": "2026-11-06",
+   "due": null,
+   "id": 657,
+   "url": "https://t.me/AI5072/657"
   },
   {
-   "id": 622,
-   "date": "2026-11-03",
-   "time": "18:41",
-   "url": "https://t.me/AI5072/622"
+   "subject": "Английский язык в профессиональной практике",
+   "teacher": null,
+   "tagged": true,
+   "after": "2026-11-10",
+   "due": null,
+   "id": 687,
+   "url": "https://t.me/AI5072/687"
   }
  ]
 }
