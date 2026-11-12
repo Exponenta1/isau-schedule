@@ -93,9 +93,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .weekday-h span{color:var(--muted);font-weight:400;font-size:.9rem}
 .weekday-h:first-child{margin-top:0}
 
-.hw{margin-top:10px;padding:12px 16px;border-radius:14px;background:var(--surface);font-size:.9rem;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
-.hw b{font-weight:600}
-.hw a{color:inherit;text-decoration:underline}
+.hw{margin-top:8px;font-size:.85rem}
+.hw a{display:inline-block;padding:4px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);color:inherit;text-decoration:none;font-weight:600}
 .notice{padding:28px 20px;border-radius:18px;background:var(--surface);text-align:center;color:var(--muted);line-height:1.5}
 .notice b{display:block;color:var(--text);font-size:1.1rem;margin-bottom:4px}
 
@@ -328,26 +327,46 @@ function slotHTML(p,ls,showEmpty){
   return `<div class="slot"><div class="time">${a}<br>${b}</div><div>${ls.map(lessonHTML).join("")}</div></div>`;
 }
 
-/* ДЗ из чата группы: только ссылки на сообщения Telegram (homework.json) */
-let HW=[];
+/* Домашнее задание: ссылки на сообщения Telegram (homework.json).
+   Парсер определяет предмет (и преподавателя), страница сама находит ближайшую пару
+   с учётом отмен и переносов; явная дата сдачи из текста имеет приоритет. */
+let HW=[], HW_GROUP=null, HWR=null, CUR_DAY="";
 fetch("homework.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{
-  if(j&&j.items){HW=j.items;HW_GROUP=j.group;render();}
+  if(j&&j.items){HW=j.items;HW_GROUP=j.group;HWR=null;render();}
 }).catch(()=>{});
-let HW_GROUP=null;
-function hwHTML(t){
-  if(!state.group||state.group!==HW_GROUP) return "";
-  const day=iso(t), hs=HW.filter(x=>x.date===day);
+function hwResolve(){
+  if(HWR) return HWR;
+  HWR=[];
+  if(!state.group||state.group!==HW_GROUP) return HWR;
+  const match=(x,l)=>l.subject===x.subject&&(!x.teacher||(l.teacher||"").includes(x.teacher));
+  const pick=(x,t)=>{
+    const c=lessonsOn(t).filter(l=>match(x,l));
+    return c.find(l=>l.type==="pr")||c[0]||null;
+  };
+  for(const x of HW){
+    let t=null,l=null;
+    if(x.due){t=Date.parse(x.due+"T00:00:00Z");l=pick(x,t);}
+    if(!l){
+      for(t=Date.parse(x.after+"T00:00:00Z")+DAY;t<=END;t+=DAY){l=pick(x,t);if(l)break;}
+    }
+    if(l) HWR.push({day:iso(t),pair:l.pair,subject:l.subject,url:x.url});
+  }
+  return HWR;
+}
+function hwHTML(l){
+  const hs=hwResolve().filter(r=>r.day===CUR_DAY&&r.pair===l.pair&&r.subject===l.subject);
   if(!hs.length) return "";
-  return `<div class="hw"><b>ДЗ в чате группы</b>`+hs.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">сообщение в ${esc(x.time)}</a>`).join("")+`</div>`;
+  return `<div class="hw">`+hs.map((r,i)=>`<a href="${esc(r.url)}" target="_blank" rel="noopener">Домашнее задание${hs.length>1?" "+(i+1):""}</a>`).join(" · ")+`</div>`;
 }
 
 function dayHTML(t,showEmpty){
-  const ls=lessonsOn(t), hw=hwHTML(t);
-  if(!ls.length && !showEmpty && !hw) return "";
+  const ls=lessonsOn(t);
+  CUR_DAY=iso(t);
+  if(!ls.length && !showEmpty) return "";
   let h="";
   for(let p=1;p<=6;p++) h+=slotHTML(p,ls.filter(l=>l.pair===p),showEmpty);
   if(!ls.length) h=`<div class="notice"><b>Свободный день</b>Пар нет</div>`;
-  return h+hw;
+  return h;
 }
 
 function render(){
