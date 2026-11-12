@@ -93,6 +93,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .weekday-h span{color:var(--muted);font-weight:400;font-size:.9rem}
 .weekday-h:first-child{margin-top:0}
 
+.ev{margin-top:8px;padding:6px 10px;border-radius:10px;font-size:.82rem;background:rgba(224,160,40,.16);border:1px solid rgba(224,160,40,.5)}
+.ev a{color:inherit;font-weight:600}
 .hw{margin-top:8px;font-size:.85rem}
 .hw a{display:inline-block;padding:4px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);color:inherit;text-decoration:none;font-weight:600}
 .notice{padding:28px 20px;border-radius:18px;background:var(--surface);text-align:center;color:var(--muted);line-height:1.5}
@@ -318,7 +320,7 @@ function lessonHTML(l){
     <span class="tag ${lec?"l":"p"}">${lec?"лек":"пр"}</span></div>
     ${place||link?`<div class="room-line">${place}${place&&link?" · ":""}${link}</div>`:""}
     ${l.teacher?`<div class="teacher">${esc(fullName(l.teacher))}</div>`:""}
-    ${meta.length?`<div class="meta">${meta.join(", ")}</div>`:""}${hwHTML(l)}</div>`;
+    ${meta.length?`<div class="meta">${meta.join(", ")}</div>`:""}${evHTML(l)}${hwHTML(l)}</div>`;
 }
 
 function slotHTML(p,ls,showEmpty){
@@ -330,9 +332,9 @@ function slotHTML(p,ls,showEmpty){
 /* Домашнее задание: ссылки на сообщения Telegram (homework.json).
    Парсер определяет предмет (и преподавателя), страница сама находит ближайшую пару
    с учётом отмен и переносов; явная дата сдачи из текста имеет приоритет. */
-let HW=[], HW_GROUP=null, HWR=null, CUR_DAY="";
+let HW=[], EV=[], HW_GROUP=null, HWR=null, EVR=null, CUR_DAY="";
 fetch("homework.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{
-  if(j&&j.items){HW=j.items;HW_GROUP=j.group;HWR=null;render();}
+  if(j&&j.items){HW=j.items;EV=j.events||[];HW_GROUP=j.group;HWR=null;EVR=null;render();}
 }).catch(()=>{});
 function hwResolve(){
   if(HWR) return HWR;
@@ -352,6 +354,31 @@ function hwResolve(){
     if(l) HWR.push({day:iso(t),pair:l.pair,subject:l.subject,url:x.url});
   }
   return HWR;
+}
+/* Отмены и переносы из сообщений чата: только пометка со ссылкой, расписание не меняется */
+function evResolve(){
+  if(EVR) return EVR;
+  EVR=[];
+  if(!state.group||state.group!==HW_GROUP) return EVR;
+  const has=(e,l)=>(l.teacher||"").includes(e.teacher)&&(!e.pair||l.pair===e.pair);
+  for(const e of EV){
+    let found=null;
+    if(e.due){
+      const t=Date.parse(e.due+"T00:00:00Z");
+      if(lessonsOn(t).some(l=>has(e,l))) found=iso(t);
+    }else{
+      for(let t=Date.parse(e.after+"T00:00:00Z");t<=END;t+=DAY){
+        if(lessonsOn(t).some(l=>has(e,l))){found=iso(t);break;}
+      }
+    }
+    if(found) EVR.push({day:found,teacher:e.teacher,pair:e.pair||0,kind:e.kind,url:e.url});
+  }
+  return EVR;
+}
+function evHTML(l){
+  const es=evResolve().filter(r=>r.day===CUR_DAY&&(l.teacher||"").includes(r.teacher)&&(!r.pair||r.pair===l.pair));
+  if(!es.length) return "";
+  return es.map(r=>`<div class="ev ${r.kind}">${r.kind==="move"?"В чате писали о переносе":"В чате писали, что пары не будет"} · <a href="${esc(r.url)}" target="_blank" rel="noopener">сообщение</a></div>`).join("");
 }
 function hwHTML(l){
   const hs=hwResolve().filter(r=>r.day===CUR_DAY&&r.pair===l.pair&&r.subject===l.subject);

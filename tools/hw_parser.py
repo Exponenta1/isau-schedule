@@ -6,6 +6,7 @@
   1. старосты размечают ДЗ хэштегами (#англ, #спсау, #сп #волкова ...) - главный сигнал;
   2. сообщение без хэштега, но со словами «дз/задание/домашка» и названием предмета
      или фамилией преподавателя в тексте.
+Кроме ДЗ ищутся сообщения об отмене/переносе пар преподавателя (events).
 Для каждого ДЗ определяется предмет (полное название из расписания), преподаватель,
 если он указан, и явная дата сдачи, если она написана в тексте («к 18.11», «до 20 ноября»).
 Дату самой пары считает страница расписания (учитывает отмены и переносы).
@@ -168,8 +169,70 @@ def classify(text, lessons, msg_day, has_media=False):
             "after": msg_day.isoformat(), "due": explicit_due(clean, msg_day)}
 
 
+# --- отмены и переносы пар из сообщений чата ---------------------------------------------
+CANCEL = re.compile(r"не будет|отмен|заболел|болеет|нет (?:пары|пар|занятий)|не придет|не придёт|"
+                    r"отпустил|разрешил\w* отмен|не проводит|пары нет", re.IGNORECASE)
+MOVE = re.compile(r"перенес|перенос|перенёс|поменя", re.IGNORECASE)
+HEDGE = re.compile(r"вроде|кажется|наверн|типа|может|возможно|слышал|говорят|не знаю", re.IGNORECASE)
+WEEKDAYS = [("понедельник", 0), ("вторник", 1), ("сред", 2), ("четверг", 3), ("пятниц", 4), ("суббот", 5)]
+
+
+def teacher_stems(lessons):
+    """{основа фамилии: фамилия} из расписания: Волкова А.А. -> {'волко': 'Волкова'}"""
+    out = {}
+    for l in lessons:
+        sur = (l.get("teacher") or "").split()[0:1]
+        if sur:
+            sur = sur[0]
+            out[sur.lower()[:max(4, len(sur) - 2)]] = sur
+    return out
+
+
+def event_due(clean, msg_day):
+    low = clean.lower()
+    due = explicit_due(clean, msg_day)
+    if due:
+        return due
+    if re.search(r"послезавтра", low):
+        return (msg_day + timedelta(days=2)).isoformat()
+    if re.search(r"завтра", low):
+        return (msg_day + timedelta(days=1)).isoformat()
+    if re.search(r"сегодня|сейчас", low):
+        return msg_day.isoformat()
+    for stem, wd in WEEKDAYS:
+        if re.search(r"(?<![а-я])" + stem, low):
+            delta = (wd - msg_day.weekday()) % 7 or 7
+            return (msg_day + timedelta(days=delta)).isoformat()
+    return None
+
+
+def classify_event(text, lessons, msg_day):
+    """Отмена/перенос пары преподавателя по сообщению чата или None."""
+    clean = URL.sub(" ", text)
+    if "?" in clean or len(clean) > 300 or HEDGE.search(clean):
+        return None
+    is_move = bool(MOVE.search(clean))
+    if not is_move and not CANCEL.search(clean):
+        return None
+    words = re.findall(r"\w+", clean.lower())
+    teachers = []
+    for stem, sur in teacher_stems(lessons).items():
+        if any(w.startswith(stem) for w in words) and sur not in teachers:
+            teachers.append(sur)
+    if len(teachers) != 1:
+        return None  # преподаватель не назван или неоднозначен
+    # «6 пару», «3 пара» - номер пары; «3 пары» - это количество, не номер
+    pairs = re.findall(r"(?<!\d)([1-6])\s*(?:пару|пара)(?![а-я])", clean.lower())
+    ev = {"kind": "move" if is_move else "cancel", "teacher": teachers[0],
+          "after": msg_day.isoformat(), "due": event_due(clean, msg_day)}
+    if len(pairs) == 1 and not is_move:  # у переноса номер - это новая пара, а не исходная
+        ev["pair"] = int(pairs[0])
+    return ev
+
+
 async def fetch(api_id, api_hash, workdir, last_id, lessons):
     found = []
+    events = []
     max_id = last_id
     async with Client("hw", api_id=api_id, api_hash=api_hash, workdir=workdir, no_updates=True) as c:
         chat = await c.get_chat(CHAT)
@@ -190,7 +253,12 @@ async def fetch(api_id, api_hash, workdir, last_id, lessons):
                 item["id"] = m.id
                 item["url"] = "https://t.me/%s/%d" % (CHAT, m.id)
                 found.append(item)
-    return found, max_id
+            ev = classify_event(text, lessons, local.date())
+            if ev:
+                ev["id"] = m.id
+                ev["url"] = "https://t.me/%s/%d" % (CHAT, m.id)
+                events.append(ev)
+    return found, events, max_id
 
 
 def push(path):
@@ -213,17 +281,26 @@ def main():
     last_id = int(state.get("last_id", 0))
     with tempfile.TemporaryDirectory() as tmp:
         copy_session(tmp)
-        found, max_id = asyncio.run(fetch(api_id, api_hash, tmp, last_id, lessons))
+        found, found_ev, max_id = asyncio.run(fetch(api_id, api_hash, tmp, last_id, lessons))
 
-    items = [i for i in load_json(OUT, {}).get("items", []) if "subject" in i]  # старый формат отбрасываем
+    old = load_json(OUT, {})
+    items = [i for i in old.get("items", []) if "subject" in i]  # старый формат отбрасываем
+    events = old.get("events", [])
+    ev_known = {e["id"] for e in events}
+    added_ev = [e for e in found_ev if e["id"] not in ev_known]
+    events = sorted(events + added_ev, key=lambda e: e["id"])
     known = {i["id"] for i in items}
     added = [f for f in found if f["id"] not in known]
     items = sorted(items + added, key=lambda i: i["id"])
     with open(OUT, "w", encoding="utf-8") as f:
-        json.dump({"group": GROUP, "items": items}, f, ensure_ascii=False, indent=1)
+        json.dump({"group": GROUP, "items": items, "events": events}, f, ensure_ascii=False, indent=1)
     with open(STATE, "w", encoding="utf-8") as f:
         json.dump({"last_id": max_id}, f)
-    print("новых ДЗ: %d, всего: %d, last_id=%d" % (len(added), len(items), max_id))
+    print("новых ДЗ: %d, всего: %d; событий (отмены/переносы): %d новых, last_id=%d"
+          % (len(added), len(items), len(added_ev), max_id))
+    for e in added_ev:
+        print("  событие %s %s: %s %s%s" % (e["id"], e["after"], e["kind"], e["teacher"],
+              " на " + e["due"] if e["due"] else ""))
     for a in added:
         print("  %s %s -> %s%s%s" % (a["id"], a["after"], a["subject"][:35],
               " (%s)" % a["teacher"] if a["teacher"] else "", " до " + a["due"] if a["due"] else ""))
