@@ -73,5 +73,80 @@
    "id": 687,
    "url": "https://t.me/AI5072/687"
   }
+ ],
+ "events": [
+  {
+   "kind": "cancel",
+   "teacher": "Крейдер",
+   "after": "2026-09-24",
+   "due": "2026-10-01",
+   "id": 250,
+   "url": "https://t.me/AI5072/250"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Волкова",
+   "after": "2026-09-24",
+   "due": "2026-09-25",
+   "id": 252,
+   "url": "https://t.me/AI5072/252"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Крейдер",
+   "after": "2026-09-30",
+   "due": "2026-10-01",
+   "id": 280,
+   "url": "https://t.me/AI5072/280"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Волкова",
+   "after": "2026-09-30",
+   "due": "2026-10-02",
+   "id": 281,
+   "url": "https://t.me/AI5072/281"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Тюпикова",
+   "after": "2026-10-02",
+   "due": null,
+   "pair": 6,
+   "id": 328,
+   "url": "https://t.me/AI5072/328"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Тюпикова",
+   "after": "2026-10-15",
+   "due": "2026-10-16",
+   "id": 384,
+   "url": "https://t.me/AI5072/384"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Тюпикова",
+   "after": "2026-10-22",
+   "due": "2026-10-23",
+   "id": 513,
+   "url": "https://t.me/AI5072/513"
+  },
+  {
+   "kind": "cancel",
+   "teacher": "Волкова",
+   "after": "2026-11-05",
+   "due": "2026-11-06",
+   "id": 640,
+   "url": "https://t.me/AI5072/640"
+  },
+  {
+   "kind": "move",
+   "teacher": "Миловидова",
+   "after": "2026-11-05",
+   "due": null,
+   "id": 642,
+   "url": "https://t.me/AI5072/642"
+  }
  ]
 }
