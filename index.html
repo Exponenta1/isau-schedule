@@ -318,7 +318,7 @@ function lessonHTML(l){
     <span class="tag ${lec?"l":"p"}">${lec?"лек":"пр"}</span></div>
     ${place||link?`<div class="room-line">${place}${place&&link?" · ":""}${link}</div>`:""}
     ${l.teacher?`<div class="teacher">${esc(fullName(l.teacher))}</div>`:""}
-    ${meta.length?`<div class="meta">${meta.join(", ")}</div>`:""}</div>`;
+    ${meta.length?`<div class="meta">${meta.join(", ")}</div>`:""}${hwHTML(l)}</div>`;
 }
 
 function slotHTML(p,ls,showEmpty){
