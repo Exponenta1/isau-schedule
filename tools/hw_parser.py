@@ -279,8 +279,13 @@ def event_by_subjects(text, ocr, lessons, msg_day):
                 if all(any(w.startswith(st) for w in words) for st in stems)]
     if not subjects:
         return None
-    return {"kind": "move" if is_move else "cancel", "subjects": sorted(subjects),
-            "after": msg_day.isoformat(), "due": due}
+    ev = {"kind": "move" if is_move else "cancel", "subjects": sorted(subjects),
+          "after": msg_day.isoformat(), "due": due}
+    # названный преподаватель сужает отмену: «командировка Миловидовой» не касается пар Сакрюкина
+    teachers = [sur for stem, sur in teacher_stems(lessons).items() if any(w.startswith(stem) for w in words)]
+    if len(teachers) == 1:
+        ev["teacher"] = teachers[0]
+    return ev
 
 
 def event_by_teacher(text, lessons, msg_day):

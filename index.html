@@ -339,7 +339,7 @@ fetch("homework.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{
 /* Отмены и переносы из сообщений чата: только пометка со ссылкой, расписание не меняется */
 /* событие относится к паре: по фамилии преподавателя или (объявление кафедры) по названию предмета */
 function evMatch(e,l){
-  const who=e.subjects?e.subjects.includes(l.subject):(l.teacher||"").includes(e.teacher);
+  const who=(!e.subjects||e.subjects.includes(l.subject))&&(!e.teacher||(l.teacher||"").includes(e.teacher));
   return who&&(!e.pair||l.pair===e.pair);
 }
 function evResolve(){
