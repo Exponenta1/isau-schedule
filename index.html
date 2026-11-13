@@ -190,7 +190,7 @@ const weekNo=t=>Math.floor((t-WEEK0)/DAY/7)+1;
 const iso=t=>new Date(t).toISOString().slice(0,10);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-// отмены на конкретные даты (group, pair, subject, teacher необязательны: сужают отмену)
+// отмены на конкретные даты (group, pair, subject, teacher необязательны: сужают отмену) или по дню недели
 const CANCELLED=[
   {date:"2026-10-29",teacher:"Крейдер О.А."},
   // перенос: лекция СПСАУ пт 30.10 -> пн 02.11, 4 пара (см. EXTRA)
@@ -198,7 +198,10 @@ const CANCELLED=[
   // перенос: семинар ИАДиНСМ у 5011 пт 30.10 -> пн 02.11, 3 пара (см. EXTRA)
   {date:"2026-10-30",teacher:"Миловидова А.А.",pair:6,group:"5011 ИВТ (ИТвУЦП)",short:"ИАДиНСМ"},
   // отмена всех пар Миловидовой 13.11
-  {date:"2026-11-13",teacher:"Миловидова А.А."}
+  {date:"2026-11-13",teacher:"Миловидова А.А."},
+  // по просьбе Александра 14.11.2026, без ссылки на пост: КЦЭ у 5072 убрана из всех пятниц (с 20.11), слот остаётся пустым.
+  // Правило по дню недели: weekday (0=пн), from - с какой даты, subject и group сужают.
+  {weekday:4,from:"2026-11-14",subject:"Концепции цифровой экономики",group:"5072 ПИ (ИИвЦЭ)"}
 ];
 // разовые занятия на конкретные даты; groups:null = у всех групп, у которых есть такая лекция
 const SPSAU="Современные проблемы системного анализа и управления";
@@ -213,7 +216,7 @@ function lessonsOn(t){
   if(!state.group||t<START||t>END) return [];
   const d=dow(t); if(d>5) return [];
   const odd=weekNo(t)%2===1, day=iso(t), g=state.group;
-  const cancelled=l=>CANCELLED.some(c=>c.date===day&&c.teacher===l.teacher&&
+  const cancelled=l=>CANCELLED.some(c=>(c.date?c.date===day:(c.weekday===d&&day>=c.from))&&(!c.teacher||c.teacher===l.teacher)&&(!c.subject||c.subject===l.subject)&&
     (!c.pair||c.pair===l.pair)&&(!c.type||c.type===l.type)&&(!c.group||c.group===g)&&(!c.short||c.short===l.short));
   const base=DATA[g].lessons.filter(l=>l.day===d &&
     (l.week==="all"||(l.week==="odd")===odd) && (!l.until||day<=l.until) && !cancelled(l));
