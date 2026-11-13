@@ -337,11 +337,16 @@ fetch("homework.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.items){HW=j.items;EV=j.events||[];HW_GROUP=j.group;HWR=null;EVR=null;render();}
 }).catch(()=>{});
 /* Отмены и переносы из сообщений чата: только пометка со ссылкой, расписание не меняется */
+/* событие относится к паре: по фамилии преподавателя или (объявление кафедры) по названию предмета */
+function evMatch(e,l){
+  const who=e.subjects?e.subjects.includes(l.subject):(l.teacher||"").includes(e.teacher);
+  return who&&(!e.pair||l.pair===e.pair);
+}
 function evResolve(){
   if(EVR) return EVR;
   EVR=[];
   if(!state.group||state.group!==HW_GROUP) return EVR;
-  const has=(e,l)=>(l.teacher||"").includes(e.teacher)&&(!e.pair||l.pair===e.pair);
+  const has=(e,l)=>evMatch(e,l);
   for(const e of EV){
     let found=null;
     if(e.due){
@@ -352,17 +357,17 @@ function evResolve(){
         if(lessonsOn(t).some(l=>has(e,l))){found=iso(t);break;}
       }
     }
-    if(found) EVR.push({day:found,teacher:e.teacher,pair:e.pair||0,kind:e.kind,url:e.url});
+    if(found) EVR.push({day:found,teacher:e.teacher,subjects:e.subjects,pair:e.pair||0,kind:e.kind,url:e.url});
   }
   return EVR;
 }
 function evHTML(l){
-  const es=evResolve().filter(r=>r.day===CUR_DAY&&(l.teacher||"").includes(r.teacher)&&(!r.pair||r.pair===l.pair));
+  const es=evResolve().filter(r=>r.day===CUR_DAY&&evMatch(r,l));
   if(!es.length) return "";
   return es.map(r=>`<div class="ev ${r.kind}">${r.kind==="move"?"В чате писали о переносе":"В чате писали, что пары не будет"} · <a href="${esc(r.url)}" target="_blank" rel="noopener">сообщение</a></div>`).join("");
 }
 function evHit(day,l){
-  return evResolve().some(r=>r.day===day&&(l.teacher||"").includes(r.teacher)&&(!r.pair||r.pair===l.pair));
+  return evResolve().some(r=>r.day===day&&evMatch(r,l));
 }
 function hwResolve(){
   if(HWR) return HWR;

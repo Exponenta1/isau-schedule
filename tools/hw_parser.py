@@ -192,6 +192,8 @@ def classify(text, lessons, msg_day, has_media=False, ocr=""):
                 break
     if found is None:
         return None
+    if not found[2] and (CANCEL.search(clean) or MOVE.search(clean)):
+        return None  # без хэштега: объявление об отмене/переносе пар, а не задание
     subject = find_subject(lessons, found[0])
     if not subject:
         return None
@@ -237,8 +239,52 @@ def event_due(clean, msg_day):
     return None
 
 
-def classify_event(text, lessons, msg_day):
-    """Отмена/перенос пары преподавателя по сообщению чата или None."""
+def subject_stems(lessons):
+    """{полное название предмета: [основы первых двух значимых слов]}"""
+    out = {}
+    for l in lessons:
+        name = l["subject"]
+        if name in out:
+            continue
+        words = [w for w in re.findall(r"\w+", name.lower()) if len(w) >= 4][:2]
+        if words:
+            out[name] = [w[:5] for w in words]
+    return out
+
+
+def classify_event(text, lessons, msg_day, ocr=""):
+    """Отмена/перенос пары по сообщению чата или объявлению на картинке, либо None.
+    text - подпись/текст, ocr - текст с картинки."""
+    short = text + ("\n" + ocr if ocr and len(ocr) <= 300 else "")
+    return event_by_teacher(short, lessons, msg_day) or event_by_subjects(text, ocr, lessons, msg_day)
+
+
+def event_by_subjects(text, ocr, lessons, msg_day):
+    """Объявление кафедры: «занятия в пятницу, 13 ноября отменяются по дисциплинам: ...».
+    Преподаватель может быть не из расписания, поэтому ищем названия предметов.
+    Нужны слово об отмене/переносе, хотя бы один предмет и явная дата."""
+    full = (text + "\n" + ocr[:OCR_MAX_CHARS]).strip()
+    clean = URL.sub(" ", full)
+    cap = URL.sub(" ", text)
+    if "?" in cap or HEDGE.search(cap) or len(cap) > OCR_MAX_CHARS or len(clean) > OCR_MAX_CHARS:
+        return None
+    is_move = bool(MOVE.search(clean))
+    if not is_move and not CANCEL.search(clean):
+        return None
+    due = explicit_due(clean, msg_day)
+    if not due:
+        return None  # без даты не знаем, какую пару помечать
+    words = re.findall(r"\w+", clean.lower())
+    subjects = [name for name, stems in subject_stems(lessons).items()
+                if all(any(w.startswith(st) for w in words) for st in stems)]
+    if not subjects:
+        return None
+    return {"kind": "move" if is_move else "cancel", "subjects": sorted(subjects),
+            "after": msg_day.isoformat(), "due": due}
+
+
+def event_by_teacher(text, lessons, msg_day):
+    """Отмена/перенос пары преподавателя по короткому сообщению чата или None."""
     clean = URL.sub(" ", text)
     if "?" in clean or len(clean) > 300 or HEDGE.search(clean):
         return None
@@ -338,7 +384,7 @@ async def fetch(api_id, api_hash, workdir, last_id, lessons):
                 continue
             has_media = any(x.media for x in group)
             item = classify(text, lessons, local.date(), has_media=has_media, ocr=ocr)
-            ev = classify_event(text + ("\n" + ocr if ocr and len(ocr) <= 300 else ""), lessons, local.date())
+            ev = classify_event(text, lessons, local.date(), ocr=ocr)
             for res in (item, ev):
                 if res:
                     res["id"] = first.id
@@ -390,7 +436,8 @@ def main():
     print("новых ДЗ: %d, всего: %d; событий (отмены/переносы): %d новых, last_id=%d"
           % (len(added), len(items), len(added_ev), max_id))
     for e in added_ev:
-        print("  событие %s %s: %s %s%s" % (e["id"], e["after"], e["kind"], e["teacher"],
+        print("  событие %s %s: %s %s%s" % (e["id"], e["after"], e["kind"],
+              e.get("teacher") or "; ".join(x[:30] for x in e.get("subjects", [])),
               " на " + e["due"] if e["due"] else ""))
     for a in added:
         print("  %s %s -> %s%s%s" % (a["id"], a["after"], a["subject"][:35],
