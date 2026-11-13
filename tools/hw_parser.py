@@ -11,6 +11,11 @@
 если он указан, и явная дата сдачи, если она написана в тексте («к 18.11», «до 20 ноября»).
 Дату самой пары считает страница расписания (учитывает отмены и переносы).
 
+Фото распознаются через tesseract (rus+eng): одиночное фото, фото с подписью, альбом из
+нескольких фото (одна запись на весь альбом, ссылка на первое сообщение). Текст на картинке
+дополняет подпись: предмет и слова об отмене берутся из подписи и распознанного текста,
+а срок сдачи с картинки принимается только рядом со словами «до/к/срок/сдать».
+
 В публичный homework.json пишутся только предмет, даты и ссылка на сообщение,
 текст сообщений не сохраняется.
 
@@ -20,6 +25,7 @@
   HW_PUSH=1 после записи сделать git add/commit/push в репозитории HW_OUT
 """
 import asyncio
+import io
 import json
 import os
 import re
@@ -40,6 +46,10 @@ OUT = os.environ.get("HW_OUT", os.path.join(HERE, "..", "homework.json"))
 STATE = os.environ.get("HW_STATE", os.path.join(HERE, "hw_state.json"))
 SCHEDULE = os.environ.get("HW_SCHEDULE", os.path.join(HERE, "..", "index.html"))
 FIRST_RUN_DAYS = int(os.environ.get("HW_DAYS", "14"))
+OCR_LANGS = os.environ.get("HW_OCR_LANGS", "rus+eng")
+OCR_MAX_PHOTOS = 10          # с альбома распознаём не больше стольки фото
+OCR_MAX_BYTES = 15 * 1024 * 1024
+OCR_MAX_CHARS = 1500         # длиннее - страница учебника, а не задание
 MSK = timezone(timedelta(hours=3))
 
 # слова ДЗ для сообщений без хэштега
@@ -141,13 +151,32 @@ def explicit_due(text, msg_day):
     return None
 
 
-def classify(text, lessons, msg_day, has_media=False):
-    """Элемент homework.json или None, если сообщение не ДЗ / предмет не определён."""
+DEADLINE = re.compile(r"(?:до|к|срок\w*|сдат\w*|сдач\w*|deadline)\s*[:\-]?\s*"
+                      r"((?:\d{1,2}[./]\d{1,2}(?![\d.]))|(?:\d{1,2}\s+(?:" + "|".join(MONTHS) + r")))",
+                      re.IGNORECASE)
+
+
+def ocr_due(ocr, msg_day):
+    """Срок сдачи из текста с картинки: только рядом со словами «до/к/срок/сдать»."""
+    for m in DEADLINE.finditer(URL.sub(" ", ocr)):
+        due = explicit_due(m.group(1), msg_day)
+        if due:
+            return due
+    return None
+
+
+def classify(text, lessons, msg_day, has_media=False, ocr=""):
+    """Элемент homework.json или None, если сообщение не ДЗ / предмет не определён.
+    text - подпись/текст сообщения, ocr - текст, распознанный на фото (может быть пустым)."""
+    caption = text
+    if ocr:
+        text = (text + "\n" + ocr[:OCR_MAX_CHARS]).strip()
     clean = URL.sub(" ", text)
     tags = [t.lower() for t in TAG.findall(clean)]
     words = re.findall(r"\w+", clean.lower())
     found = None  # (subject_part, teacher)
     body = TAG.sub(" ", clean).strip()
+    cap_clean = URL.sub(" ", caption)
     for pat, part, teacher, tag_only in ALIASES:
         if any(re.match(pat, t) for t in tags):
             found = (part, teacher, True)
@@ -155,7 +184,8 @@ def classify(text, lessons, msg_day, has_media=False):
     if found is not None and len(body) < 3 and not has_media:
         return None  # одни хэштеги, самого задания в сообщении нет
     # без хэштега: вопросы («что по волковой задали?») и длинные объявления - не ДЗ
-    if found is None and HW_WORDS.search(clean) and "?" not in clean and len(clean) <= 500:
+    # ограничения (вопрос, длина) считаем по подписи: у картинки текст длинный и с «?» из-за шума
+    if found is None and HW_WORDS.search(clean) and "?" not in cap_clean and len(cap_clean) <= 500:
         for pat, part, teacher, tag_only in ALIASES:
             if not tag_only and any(re.match(pat, w) for w in words):
                 found = (part, teacher, False)
@@ -166,7 +196,8 @@ def classify(text, lessons, msg_day, has_media=False):
     if not subject:
         return None
     return {"subject": subject, "teacher": found[1], "tagged": found[2],
-            "after": msg_day.isoformat(), "due": explicit_due(clean, msg_day)}
+            "after": msg_day.isoformat(),
+            "due": explicit_due(cap_clean, msg_day) or (ocr_due(ocr, msg_day) if ocr else None)}
 
 
 # --- отмены и переносы пар из сообщений чата ---------------------------------------------
@@ -230,10 +261,57 @@ def classify_event(text, lessons, msg_day):
     return ev
 
 
+def ocr_image(data):
+    """Текст с картинки через tesseract; пустая строка, если не вышло."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "img")
+        with open(path, "wb") as f:
+            f.write(data)
+        try:
+            r = subprocess.run(["tesseract", path, "-", "-l", OCR_LANGS], capture_output=True,
+                               timeout=90)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            print("ocr: ошибка %s" % e)
+            return ""
+    return r.stdout.decode("utf-8", "ignore").strip() if r.returncode == 0 else ""
+
+
+def is_image(m):
+    if m.photo:
+        return True
+    d = m.document
+    return bool(d and (d.mime_type or "").startswith("image/") and (d.file_size or 0) <= OCR_MAX_BYTES)
+
+
+async def ocr_message(m):
+    try:
+        buf = await m.download(in_memory=True)
+        return ocr_image(bytes(buf.getbuffer()) if isinstance(buf, io.BytesIO) else open(buf, "rb").read())
+    except Exception as e:  # битое/недоступное фото не должно ронять весь проход
+        print("ocr: сообщение %s: %s" % (m.id, e))
+        return ""
+
+
+def group_messages(msgs):
+    """Альбом (одинаковый media_group_id) - одна запись; остальные сообщения - по одному."""
+    groups, by_gid = [], {}
+    for m in msgs:
+        gid = getattr(m, "media_group_id", None)
+        if gid:
+            if gid not in by_gid:
+                by_gid[gid] = []
+                groups.append(by_gid[gid])
+            by_gid[gid].append(m)
+        else:
+            groups.append([m])
+    return groups
+
+
 async def fetch(api_id, api_hash, workdir, last_id, lessons):
     found = []
     events = []
     max_id = last_id
+    msgs = []
     async with Client("hw", api_id=api_id, api_hash=api_hash, workdir=workdir, no_updates=True) as c:
         chat = await c.get_chat(CHAT)
         since = datetime.now(timezone.utc) - timedelta(days=FIRST_RUN_DAYS)
@@ -244,19 +322,32 @@ async def fetch(api_id, api_hash, workdir, last_id, lessons):
             if not last_id and dt < since:
                 break
             max_id = max(max_id, m.id)
-            text = m.text or m.caption or ""
-            if not text:
-                continue
+            msgs.append(m)
+        for group in group_messages(msgs):
+            group.sort(key=lambda x: x.id)
+            first = group[0]
+            dt = first.date.replace(tzinfo=timezone.utc) if first.date.tzinfo is None else first.date
             local = dt.astimezone(MSK)
-            item = classify(text, lessons, local.date(), has_media=bool(m.media))
+            # подпись у альбома стоит на одном из сообщений - берём все непустые
+            text = "\n".join(t for t in ((x.text or x.caption or "") for x in group) if t)
+            ocr = ""
+            images = [x for x in group if is_image(x)][:OCR_MAX_PHOTOS]
+            if images:
+                ocr = "\n".join([t for t in [await ocr_message(x) for x in images] if t])
+            if not text and not ocr:
+                continue
+            has_media = any(x.media for x in group)
+            item = classify(text, lessons, local.date(), has_media=has_media, ocr=ocr)
+            ev = classify_event(text + ("\n" + ocr if ocr and len(ocr) <= 300 else ""), lessons, local.date())
+            for res in (item, ev):
+                if res:
+                    res["id"] = first.id
+                    res["url"] = "https://t.me/%s/%d" % (CHAT, first.id)
             if item:
-                item["id"] = m.id
-                item["url"] = "https://t.me/%s/%d" % (CHAT, m.id)
+                if ocr:
+                    item["photo"] = len(images)
                 found.append(item)
-            ev = classify_event(text, lessons, local.date())
             if ev:
-                ev["id"] = m.id
-                ev["url"] = "https://t.me/%s/%d" % (CHAT, m.id)
                 events.append(ev)
     return found, events, max_id
 
