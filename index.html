@@ -364,7 +364,7 @@ function evResolve(){
 function evHTML(l){
   const es=evResolve().filter(r=>r.day===CUR_DAY&&evMatch(r,l));
   if(!es.length) return "";
-  return es.map(r=>`<div class="ev ${r.kind}">${r.kind==="move"?"В чате писали о переносе":"В чате писали, что пары не будет"} · <a href="${esc(r.url)}" target="_blank" rel="noopener">сообщение</a></div>`).join("");
+  return es.map(r=>`<div class="ev ${r.kind}">${r.subjects?(r.kind==="move"?"Пара перенесена":"Пара отменена"):(r.kind==="move"?"В чате писали о переносе":"В чате писали, что пары не будет")} · <a href="${esc(r.url)}" target="_blank" rel="noopener">сообщение</a></div>`).join("");
 }
 function evHit(day,l){
   return evResolve().some(r=>r.day===day&&evMatch(r,l));
