@@ -86,6 +86,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .tag.l{background:var(--lec)}
 .tag.p{background:var(--pr)}
 .subj .abbr{color:var(--muted);font-weight:500}
+.subj .att{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;border:1px solid var(--muted);color:var(--muted);font-size:.72rem;font-weight:600;vertical-align:middle;white-space:nowrap}
+.subj .att.ex{border-color:var(--accent);color:var(--accent)}
 .room-line{margin-top:6px;font-size:.95rem}
 .room-line b{font-weight:600}
 
@@ -311,6 +313,21 @@ const LINKS={
 const lessonLinks=l=>{const v=LINKS[`${l.teacher}|${l.short||l.subject}`];return (v?[v]:[]).concat(l.links||[])};
 const linkLabel=u=>u.includes("telemost.yandex.ru")?"Телемост":"ссылка";
 
+// форма промежуточной аттестации по учебному плану, 1 семестр (по группам)
+const ATTEST={
+  "5072 ПИ (ИИвЦЭ)":{
+    "Английский язык в профессиональной практике":"зачёт",
+    "Профессиональная этика и культура в сфере информационных технологий":"зачёт",
+    "Философские вопросы современного естествознания, синергетики и устойчивого развития":"зачёт",
+    "Инжиниринг и реинжиниринг бизнес-процессов":"зачёт",
+    "Концепции цифровой экономики":"зачёт с оценкой",
+    "Стратегическое планирование":"зачёт с оценкой",
+    "Интеллектуальный анализ данных и нейросетевые модели":"экзамен",
+    "Современные проблемы системного анализа и управления":"экзамен"
+  }
+};
+const attestOf=l=>((ATTEST[state.group]||{})[l.subject])||"";
+
 function lessonHTML(l){
   const meta=[];
   if(l.week!=="all") meta.push(l.week==="odd"?"по нечётным неделям":"по чётным неделям");
@@ -319,7 +336,7 @@ function lessonHTML(l){
   const lec=l.type==="lec";
   const urls=l.online?lessonLinks(l):[];
   const link=urls.map(u=>`<a class="lms" href="${esc(u)}" target="_blank" rel="noopener">${linkLabel(u)}</a>`).join(" · ");
-  return `<div class="lesson"><div class="lhead"><div class="subj">${esc(l.subject)}${l.short?` <span class="abbr">(${esc(l.short)})</span>`:""}</div>
+  return `<div class="lesson"><div class="lhead"><div class="subj">${esc(l.subject)}${l.short?` <span class="abbr">(${esc(l.short)})</span>`:""}${attestOf(l)?`<span class="att${attestOf(l)==="экзамен"?" ex":""}">${attestOf(l)}</span>`:""}</div>
     <span class="tag ${lec?"l":"p"}">${lec?"лек":"пр"}</span></div>
     ${place||link?`<div class="room-line">${place}${place&&link?" · ":""}${link}</div>`:""}
     ${l.teacher?`<div class="teacher">${esc(fullName(l.teacher))}</div>`:""}
